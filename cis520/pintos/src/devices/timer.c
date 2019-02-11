@@ -114,12 +114,14 @@ timer_sleep (int64_t ticks)
   /* Atomically insert the current thread into the wait list. */
   ASSERT (intr_get_level () == INTR_ON);
   intr_disable ();
+  
   list_insert_ordered (&wait_list, &t->timer_elem,
                        compare_threads_by_wakeup_time, NULL);
   intr_enable ();
 
   /* Wait. */
   sema_down (&t->timer_sema);
+  
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be

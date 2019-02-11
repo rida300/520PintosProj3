@@ -85,7 +85,8 @@ thread_insert_ready(struct list_elem* el)
 		/* Insert into the ready list if it is empty, do not check for other threads */
 		list_insert(list_end(&ready_list), &t->elem);
 
-	} else {
+	} else 
+  {
 		struct thread* current;
 		struct list_elem* iter;
 		for(iter=list_begin(&ready_list); iter!=list_end(&ready_list); iter=list_next(iter))
@@ -100,6 +101,9 @@ thread_insert_ready(struct list_elem* el)
 		}
 		list_insert(list_end(&ready_list), &t->elem);
 	}
+  if (thread_current() != idle_thread && thread_current()->priority < t->priority )
+  thread_yield();
+
 }
 
 
@@ -253,6 +257,8 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  
+  if(priority> thread_current()->priority)//ADDED
   thread_yield();//ADDED
 
   return tid;
@@ -392,8 +398,27 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
-  thread_yield();//ADDED
+   // if the current thread has no donation, then it is normal priority change request.
+  struct thread *t_current = thread_current();
+  if (t_current->priority == t_current->orig_pri) 
+  {
+    t_current->priority = new_priority;
+    t_current->orig_pri = new_priority;
+  }
+  // otherwise, it has a donation: the original priority only should have changed
+  else {
+    t_current->orig_pri= new_priority;
+  }
+
+  // if current thread gets its priority decreased, then yield
+  // (foremost entry in ready_list shall have the highest priority)
+  if (!list_empty (&ready_list)) 
+  {
+    struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
+    if (next != NULL && next->priority > new_priority) {
+      thread_yield();
+    }
+  }
 }
 
 /* Returns the current thread's priority. */
