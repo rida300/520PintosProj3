@@ -289,22 +289,14 @@ void
 sys_close (struct list *all_files, int fd)
 {
 	if (list_empty (&all_files)) return;
-	
-  struct list_elem *e;
 	struct proc_file *f;
-
-  for (e = list_begin (all_files); 
-       e != list_end (all_files);
-       e = list_next (e))
+        f = list_search(all_files, fd);
+  if(f != NULL)
   {
-      f = list_entry (e, struct proc_file, elem);
-      if(f->fd == fd)
-      {
-      	file_close (f->ptr);
-      	list_remove (e);
-      }
+	file_close (f->ptr);
+	list_remove (&f->elem);
+	free (f);
   }
-  free (f);
 }
 
 void 
@@ -355,4 +347,3 @@ check_addr (const void *vaddr)
 	}
 	return ptr;
 }
-
