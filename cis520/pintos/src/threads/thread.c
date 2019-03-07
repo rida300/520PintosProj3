@@ -195,6 +195,7 @@ thread_create (const char *name, int priority,
   struct child *c = malloc (sizeof (*c));
   c->tid = tid;
   c->exit_error = t->exit_error;
+  c->used=false;//added
   list_push_back (&running_thread ()->children, &c->elem);
 	
 	enum intr_level old_level = intr_disable ();
