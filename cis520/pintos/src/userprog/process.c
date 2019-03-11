@@ -20,8 +20,12 @@
 #include "threads/vaddr.h"
 #include "syscall.h"
 
+//Included the header file syscall
+
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+//Added method
 static void reverse (int argc, int *argv);
 
 /* Starts a new thread running a user program loaded from
@@ -31,7 +35,7 @@ static void reverse (int argc, int *argv);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy, *save_ptr, *f_name;
+  char *fn_copy, *save_ptr, *f_name;//2 additional char pointers
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -41,21 +45,30 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-	/* Parse arguments */
+	/* Parsing arguments 
+  1. used malloc to allocate memory of the same size as the file_name    which includes filename and the parameter names 
+  2.used strlcpy to copy it to memory
+  3. used strtok_r to tokenize the raw filename, used space as the       delimeter
+  */ 
   f_name = malloc (strlen (file_name) + 1);
   strlcpy (f_name, file_name, strlen (file_name) + 1);
   f_name = strtok_r (f_name, " ", &save_ptr);
 	
-  /* Create a new thread to execute FILE_NAME. */
+  /*Create a new thread to execute FILE_NAME. 
+   1. passed in the refined f_name as the first parameter and the         entire filename with arguments using fn_copy
+   2. freed memory that was allocated for f_name as it is no longer       needed
+  */
   tid = thread_create (f_name, PRI_DEFAULT, start_process, fn_copy);
   
   free (f_name);
    
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-    
+  
+  /*decrement the sema value of the child */
   sema_down (&thread_current ()->child_lock);
   
+  //Added the success field to the thread struct to confirm execution    of the child process. If it was unable to execute successfully, the tid_t returned is -1
   if (!thread_current ()->success)
     return -1;
   
@@ -80,6 +93,11 @@ start_process (void *file_name_)
 	
   /* If load failed, quit. */
   palloc_free_page (file_name);
+  /*In the case that load was unsuccessful, the success field of its       parent thread is set to false. Value of the semaphore on the child     process is incremented and the thread is exitted
+    If it was successful, this impacts the parent process's success and    the child's lock is incremented 
+  */
+  
+  
   if (!success) 
   {
     thread_current ()->parent->success = false;
@@ -115,6 +133,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+
+  /*
+  Iterates over the children's list of the current thread, creates a child out of each list entry, checks its tid against the tid being passed in. If there is a match, the child and the list_elem are stored in local variables which would otherwise be null. Then there is a check for making sure the 2 variables were not null, if tehy were, returns -1. Otherwise, update the current thread's tid_waiting_on field. If the child was not used, its semaphore is decremented. The error variable is assigned the exit_error of the child process and this variable is returned.
+  */
   struct list_elem *e;
 
   struct child *ch = NULL;
@@ -155,6 +177,11 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+
+/*Added:
+  If the exit_error is -100, called sys_exit passing in -1.
+  Acquires lock so the current thread has exclusive access to the filesystem. Calls file_close by passing in the file currently in use by the current thread. Then closes all other files this thread was using and releases the lock on the file system. 
+*/ 
 if(cur->exit_error == -100)
       sys_exit (-1);
 
@@ -290,14 +317,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+
+  //Added: creating a char pointer, allocates memory for another char pointer which will store the tokenized version of the filename
   /* Open executable file. */
   char * save_ptr;
   char *fn_cp = malloc (strlen (file_name)+1);
   strlcpy (fn_cp, file_name, strlen(file_name)+1);
   fn_cp = strtok_r (fn_cp, " ", &save_ptr);
   
+  //end added
   file = filesys_open (fn_cp);
-   
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", fn_cp);
@@ -385,14 +414,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   success = true;
   
+  //added
   file_deny_write (file);
-
   thread_current ()->cur_file = file;
-
+  //ends added
  done:
   /* We arrive here whether the load is successful or not. */
-   free (fn_cp);
-   release_filesys_lock();
+   free (fn_cp);//needed to free the allocated memory
+   release_filesys_lock();//need to release the lock on filesystem
    return success;
 }
 
@@ -521,7 +550,7 @@ setup_stack (void **esp, const char *file_name)
     else
       palloc_free_page (kpage);
   }
-
+  //added
   char *token, *save_ptr;
   int argc = 0;
   int i;
@@ -586,7 +615,7 @@ setup_stack (void **esp, const char *file_name)
   free (copy);
   free (argv);
   free (plzwork);
-
+  //ends added
   return success;
 }
 
