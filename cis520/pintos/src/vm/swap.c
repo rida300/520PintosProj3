@@ -76,9 +76,9 @@ swap_out (struct page *p)
   // Write out page sectors
 /* add code here */ 
 
-for(x = 0; x < PAGE_SECTORS; x++)
+for(int x = 0; x < PAGE_SECTORS; x++)
 {
-block_write(swap_device, p->sector + x,(uint8_t *) p->frame->base + (x * Block_SECTOR_SIZE));
+block_write(swap_device, p->sector + x,(uint8_t *) p->frame->base + (x * BLOCK_SECTOR_SIZE));
 } 
   p->private = false;
   p->file = NULL;
