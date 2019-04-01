@@ -505,6 +505,18 @@ static void
 unmap (struct mapping *m) 
 {
 /* add code here */
+
+size_t i;
+void * addr;
+list_remove(&m->elem);
+for(i = m->page_cnt, addr= m->base;i>0; i--, addr += PGSIZE)
+{
+	page_deallocate(addr);
+}
+//lock_acquire(&fs_lock);
+//file_close(m->file);
+//lock_release(&fs_lock);
+//free(m);
 }
  
 /* Mmap system call. */

@@ -8,6 +8,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "filesys/filesys.h"
 
 /* Maximum size of process stack, in bytes. */
 #define STACK_MAX (1024 * 1024)
@@ -50,9 +51,10 @@ page_for_addr (const void *address)
       if (e != NULL)
         return hash_entry (e, struct page, hash_elem);
 
-      /* No page.  Expand stack? */
-
-/* add code */
+     if((p.addr > PHYS_BASE - STACK_MAX) &&((void *)thread_current()->user_esp - 32 < address))
+     {
+	return page_allocate(p.addr, false);
+     }
 
 
     }
@@ -147,11 +149,18 @@ page_out (struct page *p)
      page. */
 pagedir_clear_page(p->thread->pagedir, (void *) p->addr); 
 /* add code here */
-
+off_t written;
   /* Has the frame been modified? */
 dirty = pagedir_is_dirty (p->thread->pagedir, (const void *) p->addr);
 /* add code here */
-
+  if(dirty)
+  {
+//	lock_acquire(&fs_lock);
+	written = file_write_at(p->file, p->frame->base, p->file_bytes, p->file_offset);
+//	lock_release(&fs_lock);
+  	if(written == p->file_bytes)
+	     ok=true;
+  }
   /* Write frame contents to disk if necessary. */
 
 /* add code here */
