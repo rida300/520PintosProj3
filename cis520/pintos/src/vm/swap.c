@@ -1,3 +1,4 @@
+/*swap.c*/
 #include "vm/swap.h"
 #include <bitmap.h>
 #include <debug.h>
@@ -59,9 +60,8 @@ swap_in (struct page *p)
 bool
 swap_out (struct page *p) 
 {
-  size_t slot;
-  size_t i;
-
+  size_t slot, x;
+	
   ASSERT (p->frame != NULL);
   ASSERT (lock_held_by_current_thread (&p->frame->lock));
 
@@ -74,12 +74,11 @@ swap_out (struct page *p)
   p->sector = slot * PAGE_SECTORS;
 
   // Write out page sectors
-/* add code here */ 
-
-for(int x = 0; x < PAGE_SECTORS; x++)
-{
-block_write(swap_device, p->sector + x,(uint8_t *) p->frame->base + (x * BLOCK_SECTOR_SIZE));
-} 
+	for (x = 0; x < PAGE_SECTORS; x++)
+	{
+		block_write (swap_device, p->sector + x, p->frame->base + x * BLOCK_SECTOR_SIZE);
+	}
+ 	
   p->private = false;
   p->file = NULL;
   p->file_offset = 0;
