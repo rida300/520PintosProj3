@@ -1,3 +1,5 @@
+/*page.c*/
+
 #include "vm/page.h"
 #include <stdio.h>
 #include <string.h>
@@ -8,7 +10,6 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
-#include "filesys/filesys.h"
 
 /* Maximum size of process stack, in bytes. */
 #define STACK_MAX (1024 * 1024)
@@ -41,23 +42,24 @@ static struct page *
 page_for_addr (const void *address) 
 {
   if (address < PHYS_BASE) 
-    {
-      struct page p;
-      struct hash_elem *e;
+  {
+    struct page p;
+    struct hash_elem *e;
 
-      /* Find existing page. */
-      p.addr = (void *) pg_round_down (address);
-      e = hash_find (thread_current ()->pages, &p.hash_elem);
-      if (e != NULL)
-        return hash_entry (e, struct page, hash_elem);
+    /* Find existing page. */
+    p.addr = (void *) pg_round_down (address);
+    e = hash_find (thread_current ()->pages, &p.hash_elem);
+    if (e != NULL)
+      return hash_entry (e, struct page, hash_elem);
 
-     if((p.addr > PHYS_BASE - STACK_MAX) &&((void *)thread_current()->user_esp - 32 < address))
-     {
-	return page_allocate(p.addr, false);
-     }
-
-
-    }
+    /* No page.  Expand stack? */
+		if (address >= thread_current ()->user_esp - 32 &&
+				address >= PHYS_BASE - STACK_MAX)
+		{
+			struct page *new_page = page_allocate (p.addr, false);
+			return new_page;//must return this new page otherwise return value is always null
+		}
+  }
   return NULL;
 }
 
@@ -147,24 +149,29 @@ page_out (struct page *p)
      process to fault.  This must happen before checking the
      dirty bit, to prevent a race with the process dirtying the
      page. */
-pagedir_clear_page(p->thread->pagedir, (void *) p->addr); 
-/* add code here */
-off_t written;
+	pagedir_clear_page (p->thread->pagedir, p->addr);
+	dirty = pagedir_is_dirty (thread_current ()->pagedir, p->addr);
+
   /* Has the frame been modified? */
-dirty = pagedir_is_dirty (p->thread->pagedir, (const void *) p->addr);
-/* add code here */
-  if(dirty)
-  {
-//	lock_acquire(&fs_lock);
-	written = file_write_at(p->file, p->frame->base, p->file_bytes, p->file_offset);
-//	lock_release(&fs_lock);
-  	if(written == p->file_bytes)
-	     ok=true;
-  }
-  /* Write frame contents to disk if necessary. */
-
-/* add code here */
-
+	if (p!= NULL && p->file != NULL)//changed 
+	{
+		if (dirty)
+		{
+			if (!p->private)//haha told you
+				ok = file_write_at (p->file, p->frame->base, p->file_bytes, p->file_offset) == p->file_bytes;//make sure all bytes are written, only then ok is true
+			else
+				ok = swap_out (p);
+		}
+   
+		else
+			ok = true;
+	}
+ //not dirty, so not recently modified and can page out
+	else
+		ok = swap_out (p);
+	if (ok)
+		p->frame = NULL;//released
+	
   return ok;
 }
 
@@ -186,7 +193,7 @@ page_accessed_recently (struct page *p)
 }
 
 /* Adds a mapping for user virtual address VADDR to the page hash
-   table.  Fails if VADDR is already mapped or if memory
+   table.  Fails if VADDR is already ped or if memory
    allocation fails. */
 struct page *
 page_allocate (void *vaddr, bool read_only)
@@ -267,7 +274,9 @@ page_lock (const void *addr, bool will_write)
 {
   struct page *p = page_for_addr (addr);
   if (p == NULL || (p->read_only && will_write))
+  {
     return false;
+  }
   
   frame_lock (p);
   if (p->frame == NULL)
